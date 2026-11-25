@@ -1,5 +1,6 @@
 
 """Download the Makerere AI Lab bean leaf dataset."""
+
 import shutil
 import tempfile
 import zipfile
@@ -28,14 +29,14 @@ def main():
             with requests.get(
                 url,
                 stream=True,
-                timeout=180
+                timeout=180,
             ) as response:
                 response.raise_for_status()
 
-                with open(zpath, "wb") as f:
+                with open(zpath, "wb") as file:
                     for chunk in response.iter_content(1024 * 1024):
                         if chunk:
-                            f.write(chunk)
+                            file.write(chunk)
 
             print(f"Extracting {name}...")
 
@@ -56,7 +57,7 @@ def main():
 
                 shutil.copy2(
                     img,
-                    dest / f"{split}_{img.name}"
+                    dest / f"{split}_{img.name}",
                 )
 
                 count += 1
@@ -66,8 +67,8 @@ def main():
         for folder in sorted(OUT.iterdir()):
             if folder.is_dir():
                 total = sum(
-                    1 for p in folder.iterdir()
-                    if p.is_file()
+                    1 for path in folder.iterdir()
+                    if path.is_file()
                 )
                 print(f"{folder.name:<25} {total}")
 
@@ -77,4 +78,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
