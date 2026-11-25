@@ -1,0 +1,44 @@
+# Scale the API:   docker compose up -d --build --scale api=3
+# Dashboard:       http://localhost:8501      API docs: http://localhost/docs
+name: beanguard
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      - DATA_DIR=/app/data
+      - MODEL_DIR=/app/models
+      - RETRAIN_THRESHOLD=${RETRAIN_THRESHOLD:-30}
+      # One TF thread per replica makes horizontal scaling visible in the load test.
+      - TF_NUM_INTRAOP_THREADS=1
+      - TF_NUM_INTEROP_THREADS=1
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    restart: unless-stopped
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:1.25-alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8082:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    environment:
+      - API_URL=http://nginx
+    ports:
+      - "8501:8501"
+    depends_on:
+      - nginx
+    restart: unless-stopped
