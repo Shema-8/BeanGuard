@@ -218,7 +218,12 @@ with tab_retrain:
             if r is not None and r.ok:
                 st.success("Retraining started.")
             elif r is not None:
-                st.error(r.json().get("detail", r.text))
+                 try:
+                     error_message = r.json().get("detail", r.text)
+                 except ValueError:
+                     error_message = r.text or f"Server returned HTTP {r.status_code}"
+
+                 st.error(error_message)
         rs = api("GET", "/retrain/status")
         if rs is not None and rs.ok:
             stt = rs.json()
