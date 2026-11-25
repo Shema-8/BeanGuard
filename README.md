@@ -1,176 +1,553 @@
-# 🌿 BeanGuard — bean leaf disease detection, an end-to-end MLOps project
+# BeanGuard – Bean Leaf Disease Detection and Monitoring System
 
-> Diagnose bean leaf diseases (healthy · angular leaf spot · bean rust) from a phone photo — and **keep
-> improving the model** as agronomists contribute new labelled images.
+## 1. Project Overview
 
-| | |
+BeanGuard is a machine-learning-based application designed to detect diseases in bean leaves using image classification. It helps users identify three bean leaf conditions:
+
+- Angular Leaf Spot
+- Bean Rust
+- Healthy
+
+The system uses a MobileNetV2 deep-learning model to classify uploaded bean leaf images. It provides a REST API for image predictions and a web dashboard for monitoring the model, viewing insights, uploading labelled images, and triggering model retraining.
+
+BeanGuard was developed as a machine-learning and MLOps project, combining model development, API development, deployment, monitoring, automated testing, and performance evaluation.
+
+**Important:** The current model is designed specifically for bean leaves. It does not claim to diagnose diseases in other crops.
+
+## 2. Project Objectives
+
+The main objectives of BeanGuard are to:
+
+- Develop a machine-learning model that identifies bean leaf diseases.
+- Train and evaluate the model using labelled bean leaf images.
+- Provide an API that accepts images and returns predictions.
+- Build a dashboard for interacting with and monitoring the system.
+- Support uploading new labelled images for future model improvement.
+- Implement a retraining mechanism that can update the deployed model.
+- Deploy the application to the cloud.
+- Test API reliability and performance under multiple user requests.
+- Apply software engineering and MLOps practices throughout the project.
+
+## 3. Disease Classes
+
+The model recognizes three classes:
+
+| Class | Description |
 |---|---|
-| 🎥 **Video demo** | `<<YOUTUBE LINK — camera on>>` |
-| 🌐 **Live dashboard** | `<<http://YOUR-SERVER-IP:8501>>` |
-| 🔌 **Live API docs (Swagger)** | `<<http://YOUR-SERVER-IP/docs>>` |
-| 📓 **Notebook** | [`notebook/rwanda_heritage_classifier.ipynb`](notebook/rwanda_heritage_classifier.ipynb) |
-| 📦 **Model files** | [`models/`](models/) (`.keras` served by the API, `.h5` export) |
+| `angular_leaf_spot` | Bean leaves affected by angular leaf spot disease. |
+| `bean_rust` | Bean leaves affected by bean rust disease. |
+| `healthy` | Bean leaves without the two targeted diseases. |
 
----
+The model returns a predicted class and a confidence score for an uploaded image.
 
-## 1. The problem
+## 4. Technologies Used
 
-Beans are a staple crop in Rwanda and across East Africa. Leaf diseases such as **angular leaf spot** and
-**bean rust** can destroy a harvest if they are not caught early, but agronomists are few and fields are many.
-BeanGuard lets a farmer or extension officer photograph a leaf and get an instant diagnosis with practical advice.
-Because new labelled photos can be uploaded at any time, the model **keeps learning from the field** instead of
-going stale.
+### Machine Learning
+- Python
+- TensorFlow
+- Keras
+- MobileNetV2
+- NumPy
+- Image classification
 
-**Classes:** `healthy`, `angular_leaf_spot`, `bean_rust`.
-**Dataset:** iBean — ~1,300 field photos of bean leaves from Makerere AI Lab (Uganda), see `data/SOURCES.md`.
-Low-confidence predictions are flagged in the UI ("this may not be a bean leaf").
+### Backend
+- FastAPI
+- Uvicorn
+- Pydantic
 
-## 2. The ML lifecycle in this repo
+### Dashboard
+- Streamlit
+- Requests
+- Data visualization tools
 
+### DevOps and Deployment
+- Docker
+- Docker Compose
+- Nginx
+- Render
+- Git and GitHub
+
+### Testing and Performance
+- Pytest
+- Locust
+- Flake8
+
+### Development Environment
+- Python virtual environment (`.venv`)
+- Visual Studio Code
+- PowerShell
+
+## 5. Dataset
+
+BeanGuard uses a labelled image dataset organized into training and testing directories.
+
+The dataset contains three categories:
+
+- `angular_leaf_spot`
+- `bean_rust`
+- `healthy`
+
+The training dataset is used to teach the model to recognize the different bean leaf conditions. The test dataset is used to evaluate the model on images that were not used for training.
+
+The local dataset currently contains:
+
+- **1,169 image files**
+- Approximately **120.8 MB** of image data across the training and testing directories.
+
+The project also includes a location for newly uploaded labelled images.
+
+### Dataset Structure
+
+```text
+data/
+├── train/
+│   ├── angular_leaf_spot/
+│   ├── bean_rust/
+│   └── healthy/
+│
+├── test/
+│   ├── angular_leaf_spot/
+│   ├── bean_rust/
+│   └── healthy/
+│
+├── new_data_demo/
+│
+└── uploads/
 ```
- Data acquisition ─► Preprocessing ─► Model creation ─► Evaluation ─► FastAPI ─► Dashboard
- scripts/split_      src/preprocessing  notebook/ +       src/model.py   api/        ui/ (Streamlit)
- dataset.py          .py                src/train.py                     main.py        │
-        ▲                                                                   ▲           │ upload + button
-        │                                                                   │ hot-reload▼
-        └──────────── data/train ◄── merge ◄── src/retrain.py ◄── /upload, /retrain  (+ auto trigger)
-                                                      │
-                          Docker Compose: nginx ─► N × api containers ─► Locust load test & monitoring
+
+The `uploads` directory is intended for newly submitted images. Uploaded images can be used as additional labelled examples during the retraining process.
+
+## 6. Machine Learning Model
+
+BeanGuard uses MobileNetV2 for image classification.
+
+MobileNetV2 is a convolutional neural network architecture designed to perform image recognition efficiently. It is suitable for applications that need image classification without relying on an unnecessarily large model.
+
+The model predicts one of the three supported bean leaf classes.
+
+### Model Artifacts
+
+The project includes the following model-related files:
+
+- `beanguard_mobilenetv2.keras` – the saved Keras model.
+- `beanguard_mobilenetv2.h5` – an additional saved model format.
+- `class_names.json` – stores the class names used by the classifier.
+- `metrics.json` – stores model evaluation metrics.
+
+The model is loaded by the API when the application starts.
+
+## 7. System Architecture
+
+BeanGuard follows a simple architecture in which the dashboard communicates with the backend API, and the API uses the trained model to generate predictions.
+
+```text
+                 USER
+                   |
+                   v
+          STREAMLIT DASHBOARD
+                   |
+                   v
+              FASTAPI
+                   |
+          -----------------
+          |               |
+          v               v
+    IMAGE PROCESSING   MONITORING
+          |
+          v
+    MOBILENETV2 MODEL
+          |
+          v
+    PREDICTED CLASS
+          |
+          v
+    RESULT TO DASHBOARD
 ```
 
-| Stage | Where | Notes |
+The system also supports a retraining workflow:
+
+```text
+New Labelled Images
+        |
+        v
+Upload Endpoint
+        |
+        v
+Pending Uploads
+        |
+        v
+Retraining Trigger
+        |
+        v
+Training and Evaluation
+        |
+        v
+Candidate Model
+        |
+        v
+Model Evaluation
+        |
+        v
+Model Promotion
+```
+
+The retraining process is designed to evaluate a candidate model before replacing the existing model.
+
+## 8. Backend API
+
+The backend is developed using FastAPI.
+
+It provides endpoints for health checks, model information, predictions, image uploads, monitoring, and retraining.
+
+### Main API Endpoints
+
+| Method | Endpoint | Purpose |
 |---|---|---|
-| 1. Data acquisition | `scripts/download_beans.py`, `scripts/split_dataset.py` | download iBean, validate, dedupe, split into train/test/demo |
-| 2. Data processing | `src/preprocessing.py` | EXIF fix, resize 224², in-model rescale, class weights, `tf.data` |
-| 3. Model creation | `notebook/…ipynb`, `src/model.py`, `src/train.py` | MobileNetV2 transfer learning, 2-phase training |
-| 4. Model testing | notebook §6–7, `src/model.evaluate` | accuracy, loss, precision, recall, F1, confusion matrix |
-| 5. **Retraining** | `src/retrain.py` | upload → DB → preprocess → fine-tune **existing** model → compare → promote |
-| 6. API | `api/main.py` | FastAPI: `/predict /upload /retrain /status /metrics /insights` |
-| UI | `ui/app.py` | Diagnose · Data insights · Upload & Retrain · Monitoring |
-| Deployment | `Dockerfile.*`, `docker-compose.yml`, `nginx/` | scale API replicas behind nginx |
-| Load test | `locust/` | 1 / 2 / 3 container experiment |
+| GET | `/health` | Checks whether the API is healthy. |
+| GET | `/status` | Returns model and application status. |
+| GET | `/metrics` | Provides model and system metrics. |
+| GET | `/predictions/recent` | Retrieves recent prediction records. |
+| POST | `/predict` | Accepts an image and returns a prediction. |
+| POST | `/upload` | Uploads labelled images for future training. |
+| POST | `/retrain` | Starts the model retraining process. |
+| GET | `/retrain/status` | Checks the retraining process status. |
+| GET | `/insights` | Provides data and prediction insights. |
 
-## 3. Model & optimisation techniques
+### Example Prediction Response
 
-MobileNetV2 (ImageNet) → GlobalAveragePooling → Dropout(0.3) → L2-regularised softmax.
+A successful prediction returns information about the detected class and its confidence score.
 
-* Transfer learning, data augmentation (flip/rotation/zoom/contrast), Dropout, L2 weight decay
-* Adam optimiser; **two-phase schedule**: frozen backbone (lr 1e-3) → fine-tune top 40 layers (lr 1e-5)
-* EarlyStopping, ReduceLROnPlateau, balanced class weights, small hyper-parameter search
-* A vanilla CNN baseline is trained to show what the optimisations buy
+The response structure depends on the API implementation, but it includes the predicted disease category and classification confidence.
 
-### Results (held-out test set) — `<<fill in from notebook §6>>`
+### API Documentation
 
-| Model | Accuracy | Loss | Precision (macro) | Recall (macro) | F1 (macro) |
-|---|---|---|---|---|---|
-| Baseline CNN | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` |
-| MobileNetV2 (optimised) | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` |
+FastAPI automatically provides interactive API documentation.
 
-## 4. The retraining pipeline
+Visit:
 
-1. **Upload** labelled images (one class per upload) or a ZIP with one folder per class → validated, de-duplicated,
-   stored in `data/uploads/` and recorded in the SQLite database (`uploads` table).
-2. **Trigger** — either the **Retrain** button / `POST /retrain`, or automatically once `RETRAIN_THRESHOLD`
-   (default 30) new images are waiting.
-3. **Preprocess** — uploads are merged into `data/train/<class>/` and run through the same `tf.data` pipeline.
-4. **Retrain** — the *existing, already-trained* model is loaded and fine-tuned (low learning rate) on the
-   enlarged dataset: a custom pre-trained model, not ImageNet from scratch.
-5. **Evaluate & gate** — old and new models are scored on the **untouched test set**; the new model is promoted
-   only if macro-F1 is not worse. The old model is archived (`models/archive/`).
-6. **Deploy** — the model file is replaced atomically; every API replica detects the new file and hot-reloads it
-   (no restart). The version history is shown in the Monitoring tab.
+https://beanguard.onrender.com/docs
 
-A lock file prevents concurrent retraining jobs across replicas; a failed run leaves the live model untouched.
+## 9. Streamlit Dashboard
 
-## 5. Setup
+BeanGuard includes a Streamlit dashboard that provides a user-friendly interface for interacting with the deployed API.
 
-### Option A — Docker (recommended, same as production)
+The dashboard supports the following activities:
+
+- Viewing application and API status.
+- Checking whether the machine-learning model is available.
+- Uploading bean leaf images for diagnosis.
+- Viewing prediction results.
+- Exploring available data insights.
+- Uploading labelled images.
+- Triggering model retraining.
+- Monitoring retraining progress.
+
+The dashboard communicates with the backend API rather than independently running the prediction model.
+
+## 10. Model Retraining
+
+BeanGuard includes a retraining workflow that allows new labelled images to contribute to future model updates.
+
+The process works as follows:
+
+1. A user uploads labelled bean leaf images.
+2. The API accepts the images and stores them as pending uploads.
+3. The retraining endpoint is triggered.
+4. The retraining process checks for available training images.
+5. The candidate model is trained and evaluated.
+6. The candidate is compared with the existing model.
+7. The model is promoted only when it satisfies the configured evaluation conditions.
+8. The retraining status is updated.
+
+The retraining implementation also checks that the expected class directories exist.
+
+### Retraining Endpoints
+
+Start retraining:
+
+```http
+POST /retrain
+```
+
+Check retraining status:
+
+```http
+GET /retrain/status
+```
+
+A response indicating that retraining has started does not necessarily mean it has completed successfully. The status endpoint must be checked to confirm the final result.
+
+### Current Deployment Consideration
+
+During cloud testing, retraining failed because the deployed API could not find the original training images at:
+
+```text
+/app/data/train
+```
+
+The local training and testing datasets exist, but they were not initially tracked in Git. The Docker configuration was updated to include the training and testing directories.
+
+The dataset files still need to be confirmed in the GitHub repository and included in a successful Render deployment before cloud retraining can be considered fully verified.
+
+## 11. Deployment
+
+BeanGuard has been deployed using Render.
+
+The project has two deployed services:
+
+**Backend API**
+
+https://beanguard.onrender.com
+
+**Streamlit Dashboard**
+
+https://beanguard-dashboard.onrender.com
+
+### Useful Deployment Links
+
+- API health: https://beanguard.onrender.com/health
+- Application status: https://beanguard.onrender.com/status
+- API documentation: https://beanguard.onrender.com/docs
+- Retraining status: https://beanguard.onrender.com/retrain/status
+
+The backend and dashboard are separate services. The dashboard sends requests to the backend API.
+
+### Docker
+
+Docker was used to containerize the backend and support consistent application deployment.
+
+The API Docker image was built successfully using:
+
+```dockerfile
+FROM python:3.11-slim
+```
+
+The API container uses Uvicorn to serve the FastAPI application.
+
+The Docker configuration includes the application source code, model files, dependencies, and the intended training and testing dataset directories.
+
+A health check is also configured to check the API's `/health` endpoint.
+
+### Local Docker and Scaling Tests
+
+The project was also tested locally using Docker containers.
+
+The API, dashboard, and Nginx containers were running during the local deployment tests.
+
+The API was tested with one, two, and three containers behind Nginx. Two-container and three-container configurations were confirmed to be healthy.
+
+## 12. Testing
+
+Testing was performed to check whether the application works correctly and whether its main components behave as expected.
+
+### Unit and Application Tests
+
+Pytest was used to run the project's automated tests.
+
+The recorded test result was:
+
+```text
+12 passed, 4 warnings
+```
+
+This confirmed that the 12 tests passed at the time of testing. The warnings did not prevent the tests from passing.
+
+### API Testing
+
+The API was tested using its endpoints.
+
+The following functionality was checked:
+
+- API health checks.
+- Model availability.
+- Image prediction.
+- Image uploads.
+- Retraining requests.
+- Retraining status monitoring.
+
+The prediction endpoint successfully returned a classification result during testing. One recorded angular leaf spot prediction had a confidence score of 92.76%.
+
+Image uploads were also accepted successfully by the API.
+
+## 13. Performance and Load Testing
+
+Locust was used to simulate multiple users sending requests to the API.
+
+The load testing focused on:
+
+- `/health`
+- `/predict`
+
+### Recorded One-Container Test Results
+
+| Metric | `/health` | `/predict` |
+|---|---:|---:|
+| Total requests | 38 | 159 |
+| Failures | 0 | 0 |
+| Average response time | 965.68 ms | 11,261.45 ms |
+| Median response time | Not recorded | 12,000 ms |
+| 95th percentile | Not recorded | 23,000 ms |
+
+**Overall results:**
+
+- Total requests: 197
+- Total failures: 0
+- Average response time across requests: 9,275.47 ms
+
+The results showed that the API handled the recorded requests without failures. However, image prediction took considerably longer than health checks.
+
+The project also tested two and three API containers behind Nginx. The corresponding detailed performance results were not recorded here.
+
+## 14. Continuous Integration
+
+GitHub Actions was configured to run automated checks when changes are pushed to the repository.
+
+The CI workflow uses Python 3.11 and includes:
+
+- Installing project dependencies.
+- Running Flake8 for code quality checks.
+- Running Pytest for automated tests.
+
+The CI workflow passed during the recorded testing.
+
+## 15. Running the Project Locally
+
+### Requirements
+
+Install the following before running the project:
+
+- Python 3.11
+- Git
+- Docker (optional, for containerized execution)
+
+### Step 1: Clone the Repository
+
 ```bash
-git clone <<YOUR_REPO_URL>> && cd <<YOUR_REPO_FOLDER>>
-# models/ must contain the trained model (heritage_mobilenetv2.keras, class_names.json, metrics.json)
-docker compose up -d --build --scale api=2
-```
-* Dashboard: http://localhost:8501  · API docs: http://localhost/docs
-
-### Option B — local Python
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt -r ui/requirements.txt
-uvicorn api.main:app --reload                           # terminal 1
-API_URL=http://localhost:8000 streamlit run ui/app.py   # terminal 2
+git clone https://github.com/Shema-8/BeanGuard.git
 ```
 
-### Train from scratch
-```bash
-# 1. download the iBean dataset into raw_images/<class>/ and split it
-python scripts/download_beans.py
-python scripts/split_dataset.py raw_images --out data
-# 2a. notebook:  jupyter lab notebook/rwanda_heritage_classifier.ipynb    (Colab GPU recommended)
-# 2b. or CLI:    python -m src.train --head-epochs 15 --ft-epochs 15
-```
-Run tests: `pytest -q` · Demo ZIP for the retraining upload: `python scripts/make_demo_zip.py`
-
-### Configuration (environment variables)
-`RETRAIN_THRESHOLD` (30) · `RETRAIN_EPOCHS` (8) · `RETRAIN_LR` (1e-5) · `CONFIDENCE_THRESHOLD` (0.5) ·
-`PROMOTION_TOLERANCE` (0.0) · `MAX_UPLOAD_MB` (50) — see `src/config.py`.
-
-## 6. API
-
-| Endpoint | Purpose |
-|---|---|
-| `POST /predict` | classify one image → label, confidence, top-3, model version, latency |
-| `POST /upload` | bulk labelled images (`label` form field) or ZIP of class folders |
-| `POST /retrain` · `GET /retrain/status` | trigger / follow retraining |
-| `GET /status` · `GET /health` | uptime, model version, pending uploads, serving container |
-| `GET /metrics` | test-set metrics, live latency stats, model version history |
-| `GET /insights` | dataset statistics + auto-written interpretations for the dashboard |
-
-## 7. Cloud deployment
-
-Deployed on `<<AWS EC2 t3.xlarge / GCP e2-standard-4 — region>>` with Docker Compose.
-Full step-by-step: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Public URL: `<<…>>`.
-
-## 8. Flood-request simulation (Locust)
-
-Same test (`<<50>>` users, spawn `<<5>>`/s, `<<120>>` s) against 1, 2 and 3 API containers:
+### Step 2: Enter the Project Directory
 
 ```bash
-pip install -r locust/requirements.txt
-./locust/run_experiments.sh 50 5 120s     # writes locust/results/*.csv and summary.md
+cd BeanGuard
 ```
 
-| Containers | Requests | Failures | Avg (ms) | Median (ms) | p95 (ms) | p99 (ms) | Req/s |
-|---|---|---|---|---|---|---|---|
-| 1 | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` |
-| 2 | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` |
-| 3 | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` | `<<>>` |
+### Step 3: Create a Virtual Environment
 
-![latency and throughput](locust/results/latency_throughput.png)
+On Windows PowerShell:
 
-**Reading the results:** `<<2–3 sentences: how latency and throughput change as containers increase; where it
-stops scaling (CPU cores of the VM); failures>>`
-
-## 9. Repository layout
-
-```
-├── README.md
-├── notebook/rwanda_heritage_classifier.ipynb
-├── src/            preprocessing.py  model.py  prediction.py  retrain.py  train.py  database.py  config.py
-├── api/main.py     FastAPI service
-├── ui/app.py       Streamlit dashboard
-├── data/           train/  test/  uploads/ (runtime)  SOURCES.md
-├── models/         heritage_mobilenetv2.keras / .h5 · class_names.json · metrics.json
-├── locust/         locustfile.py  run_experiments.sh  summarize_results.py  results/
-├── scripts/        download_beans.py  split_dataset.py  make_demo_zip.py
-├── nginx/ Dockerfile.api Dockerfile.ui docker-compose.yml
-├── tests/          unit + API tests (run in CI)
-└── docs/           DEPLOYMENT.md  DEMO_SCRIPT.md  SUBMISSION_CHECKLIST.md
+```powershell
+python -m venv .venv
 ```
 
-## 10. Limitations & ethics
-* The dataset has only three classes and field photos from one region; the model may not generalise to other bean
-  diseases, other crops or very different cameras. Low-confidence predictions are flagged, not eliminated.
-* BeanGuard supports, and does not replace, an agronomist: the advice cards are general guidance.
-* The iBean dataset is credited in `data/SOURCES.md`; contribute only photos you have the right to share.
-* SQLite on a shared volume is fine for one VM; production would use Postgres + object storage.
-* One-VM scaling is bounded by CPU cores (see the load-test discussion).
+### Step 4: Activate the Virtual Environment
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+### Step 5: Install Dependencies
+
+```powershell
+pip install -r requirements.txt
+```
+
+### Step 6: Start the API
+
+```powershell
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The API should be available at:
+
+```text
+http://localhost:8000
+```
+
+Interactive API documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+The Streamlit dashboard can be started separately, using the project's dashboard entry point:
+
+```powershell
+streamlit run ui/app.py
+```
+
+The dashboard must be configured to communicate with the API URL being used.
+
+## 16. Running Automated Tests
+
+Run the test suite using:
+
+```powershell
+pytest -q
+```
+
+Run the code quality check using:
+
+```powershell
+flake8
+```
+
+## 17. Running Load Tests
+
+Install Locust if it is not already installed:
+
+```powershell
+pip install locust
+```
+
+Start Locust using the project's Locust configuration file:
+
+```powershell
+locust -f locust/locustfile.py
+```
+
+Open the Locust interface in a browser using the local address displayed by Locust. During our local testing, the interface was accessed through port `8090`.
+
+Configure the target API host and the number of simulated users before starting the test.
+
+## 18. Known Limitations and Considerations
+
+- The model currently supports only three bean leaf categories.
+- Prediction response times can be relatively high, especially under load.
+- Render free services can sleep after periods of inactivity, which can cause slower responses when they wake up.
+- Local container filesystems and cloud container filesystems may be temporary. Uploaded images should not be assumed to persist after a service restart unless persistent storage is configured.
+- Cloud retraining requires the original training and testing datasets to be available inside the deployed container.
+- A successful retraining trigger does not guarantee successful model training. The retraining status must be checked.
+- The cloud retraining workflow still requires a successful end-to-end verification after the dataset deployment issue is resolved.
+
+## 19. Future Improvements
+
+Possible improvements include:
+
+- Expanding the dataset with more diverse bean leaf images.
+- Improving model prediction speed.
+- Increasing the number of labelled training examples.
+- Improving dashboard visualizations.
+- Adding persistent storage for uploaded images.
+- Improving model monitoring and retraining logs.
+- Performing additional load tests with different numbers of API containers.
+- Evaluating the model with additional unseen images.
+- Improving deployment reliability and automated model version management.
+
+## 20. Repository
+
+GitHub repository:
+
+https://github.com/Shema-8/BeanGuard
+
+The repository contains the source code, model artifacts, API, dashboard, Docker configuration, tests, and CI workflow.
+
+## 21. Conclusion
+
+BeanGuard demonstrates the development and deployment of an end-to-end machine-learning application for bean leaf disease classification.
+
+The project brings together image classification using MobileNetV2, a FastAPI backend, a Streamlit dashboard, Docker containerization, cloud deployment, automated testing, and load testing.
+
+It also introduces a retraining workflow intended to support future model improvements using newly labelled images.
+
+Through this project, practical experience was gained in machine-learning development, API integration, containerization, deployment, monitoring, testing, and MLOps practices.
