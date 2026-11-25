@@ -2,9 +2,24 @@
 .git
 .github
 venv
+.venv
 __pycache__
 *.pyc
+.pytest_cache
+.ipynb_checkpoints
 notebook
 tests
 locust/results
+
+# Exclude data by default
 data
+
+# Include original training and test datasets
+!data/
+!data/train/
+!data/train/**
+!data/test/
+!data/test/**
+
+# Exclude runtime uploads from the Docker image
+data/uploads/

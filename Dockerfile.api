@@ -17,6 +17,10 @@ COPY src ./src
 COPY api ./api
 COPY models ./models
 
+# Include the original training and test datasets
+COPY data/train ./data/train
+COPY data/test ./data/test
+
 RUN mkdir -p /app/data/uploads
 
 EXPOSE 8000
