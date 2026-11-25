@@ -1,6 +1,10 @@
+
 FROM python:3.11-slim
 
-ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 TF_CPP_MIN_LOG_LEVEL=2
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TF_CPP_MIN_LOG_LEVEL=2
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
@@ -11,10 +15,13 @@ RUN pip install -r requirements.txt
 
 COPY src ./src
 COPY api ./api
-# data/ and models/ are mounted as volumes (see docker-compose.yml) so that uploads,
-# retrained models and the SQLite DB persist and are shared by every replica.
+COPY models ./models
+
+RUN mkdir -p /app/data/uploads
 
 EXPOSE 8000
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s \
-  CMD curl -fs http://localhost:8000/health || exit 1
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+  CMD-SHELL curl -fsS "http://localhost:${PORT:-8000}/health" || exit 1
+
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
