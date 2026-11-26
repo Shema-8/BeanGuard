@@ -4,6 +4,10 @@
 
 BeanGuard is a machine-learning-based application designed to detect diseases in bean leaves using image classification. It helps users identify three bean leaf conditions:
 
+## video link: 
+
+## https://www.youtube.com/watch?v=cE7Y6Iggw-o
+
 - Angular Leaf Spot
 - Bean Rust
 - Healthy
@@ -539,6 +543,10 @@ Possible improvements include:
 GitHub repository:
 
 https://github.com/Shema-8/BeanGuard
+
+video link: 
+
+https://www.youtube.com/watch?v=cE7Y6Iggw-o
 
 The repository contains the source code, model artifacts, API, dashboard, Docker configuration, tests, and CI workflow.
 
