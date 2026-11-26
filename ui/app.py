@@ -3,7 +3,6 @@ import os
 import requests
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 
 # =========================================================
@@ -488,7 +487,6 @@ with diagnose:
 
                             st.success("Analysis completed.")
                             display_result(result)
-
 
                         except ValueError:
                             st.error("The API returned an invalid response.")
