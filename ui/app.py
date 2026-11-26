@@ -234,13 +234,13 @@ def show_api_error(response):
 
 
 def display_result(result):
+    # The API returns the predicted class in the "label" field.
     prediction = result.get(
-        "prediction",
-        result.get("class", "Unknown")
+        "label",
+        result.get("prediction", result.get("class", "Unknown"))
     )
 
     confidence = result.get("confidence")
-
     prediction_text = str(prediction).replace("_", " ").title()
 
     if prediction == "healthy":
@@ -253,7 +253,6 @@ def display_result(result):
             """,
             unsafe_allow_html=True
         )
-
     else:
         st.markdown(
             f"""
@@ -268,24 +267,37 @@ def display_result(result):
     if confidence is not None:
         try:
             confidence_value = float(confidence)
-
             if confidence_value > 1:
                 confidence_value /= 100
-
-            confidence_value = max(
-                0.0,
-                min(1.0, confidence_value)
-            )
+            confidence_value = max(0.0, min(1.0, confidence_value))
 
             st.metric(
                 "Model confidence",
                 f"{confidence_value * 100:.2f}%"
             )
-
             st.progress(confidence_value)
-
         except (ValueError, TypeError):
             st.write(f"Confidence: {confidence}")
+
+    # Display the top-three class confidence scores.
+    top3 = result.get("top3", [])
+    if top3:
+        chart_rows = []
+        for item in top3:
+            label = str(item.get("label", "Unknown"))
+            score = float(item.get("confidence", 0))
+            if score <= 1:
+                score *= 100
+
+            chart_rows.append({
+                "Disease": label.replace("_", " ").title(),
+                "Confidence (%)": score
+            })
+
+        if chart_rows:
+            st.subheader("Disease Classification Results")
+            chart_data = pd.DataFrame(chart_rows).set_index("Disease")
+            st.bar_chart(chart_data)
 
     st.caption(
         "This is an AI prediction. Confirm suspected diseases "
@@ -477,8 +489,6 @@ with diagnose:
                             st.success("Analysis completed.")
                             display_result(result)
 
-                            with st.expander("View full prediction response"):
-                                st.json(result)
 
                         except ValueError:
                             st.error("The API returned an invalid response.")
